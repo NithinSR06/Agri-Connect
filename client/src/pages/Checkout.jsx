@@ -36,7 +36,7 @@ const Checkout = () => {
                 farmer_id: item.farmer_id
             }));
 
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/place`, {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders`, {
                 items,
                 ...formData
             }, {
