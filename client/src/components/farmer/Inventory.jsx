@@ -48,14 +48,18 @@ const Inventory = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products/add`, formData, {
+            console.log('Sending Add Product request...');
+            // FIXED: Route is /api/products, not /api/products/add
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/products`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            alert('Product added successfully!');
             setIsAdding(false);
             setFormData({ crop_name: '', price_per_kg: '', available_qty: '', harvest_date: '', description: '', image_url: '' });
             fetchProducts();
         } catch (error) {
-            alert('Failed to add product');
+            console.error('Add product error:', error);
+            alert(`Failed to add product: ${error.response?.data?.message || error.message}`);
         }
     };
 
