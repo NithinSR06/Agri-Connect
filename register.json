@@ -1,0 +1,9 @@
+{
+    "name": "Test User",
+    "email": "testcurl3@test.com",
+    "password": "password123",
+    "role": "consumer",
+    "location_lat": 12.97,
+    "location_lng": 77.59,
+    "location_text": "Test Loc"
+}
