@@ -33,6 +33,12 @@ app.get('/', (req, res) => {
     res.send('AgriConnect API is running');
 });
 
+// Debug Catch-all for 404
+app.use((req, res) => {
+    console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ message: `Route not found: ${req.originalUrl}` });
+});
+
 // Only listen if not running in Vercel (local dev)
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
