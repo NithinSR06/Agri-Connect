@@ -20,6 +20,7 @@ app.use((req, res, next) => {
 
 // Simple Test Route
 app.get('/api/test', (req, res) => {
+    console.log('Test Request Received!');
     res.json({ message: 'API is working!', timestamp: new Date() });
 });
 
