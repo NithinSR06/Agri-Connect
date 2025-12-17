@@ -1,10 +1,3 @@
-const { pool } = require('../../database');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
-
 module.exports = async (req, res) => {
     // Enable CORS manually
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -21,10 +14,18 @@ module.exports = async (req, res) => {
     }
 
     // DUMMY RESPONSE - NO DB
-    console.log("Register Function Hit!");
+    console.log("Register Function Hit! Returning Dummy Success.");
+
+    // Simulating a successful user creation for ID 999
     res.status(201).json({
         message: 'User registered successfully (DUMMY)',
-        token: 'dummy_token',
-        user: { id: 1, name: 'Test', email: 'test@test.com', role: 'farmer', kyc_status: 'verified' }
+        token: 'dummy_token_12345',
+        user: {
+            id: 999,
+            name: 'Test Farmer',
+            email: 'test@farm.com',
+            role: 'farmer',
+            kyc_status: 'verified'
+        }
     });
 };
