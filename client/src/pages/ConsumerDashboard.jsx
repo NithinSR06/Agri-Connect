@@ -12,7 +12,7 @@ const ConsumerDashboard = () => {
 
     const fetchOrders = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/my-orders`, {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/consumer`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             });
             setOrders(res.data);

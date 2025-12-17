@@ -12,7 +12,7 @@ const FarmerOrders = () => {
     const fetchOrders = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/farmer-orders`, {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/farmer`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setOrders(res.data);
@@ -23,7 +23,7 @@ const FarmerOrders = () => {
 
     const updateStatus = async (id, status) => {
         try {
-            await axios.patch(`http://localhost:5000/api/orders/${id}/status`, { status }, {
+            await axios.patch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/${id}/status`, { status }, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             });
             fetchOrders();
