@@ -29,24 +29,12 @@ initDb().catch(err => console.error('DB Init Error:', err));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
-const { register } = require('./controllers/authController'); // Import directly
-
-// DIRECT DEBUG ROUTE (Bypassing Router to fix 404)
-app.post('/api/auth/register', (req, res, next) => {
-    console.log('Direct Register Hit!');
-    register(req, res).catch(next);
-});
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
-
-// UNIVERSAL MOUNTING (In case Vercel strips /api prefix)
-app.use('/auth', authRoutes);
-app.use('/products', productRoutes);
-app.use('/orders', orderRoutes);
 
 app.get('/', (req, res) => {
     res.send('AgriConnect API is running');
@@ -59,10 +47,9 @@ app.use((req, res) => {
 });
 
 // Only listen if not running in Vercel (local dev)
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}
+// Always listen (Required for Render and Local)
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;
