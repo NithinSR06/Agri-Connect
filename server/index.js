@@ -28,6 +28,13 @@ initDb().catch(err => console.error('DB Init Error:', err));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
+const { register } = require('./controllers/authController'); // Import directly
+
+// DIRECT DEBUG ROUTE (Bypassing Router to fix 404)
+app.post('/api/auth/register', (req, res, next) => {
+    console.log('Direct Register Hit!');
+    register(req, res).catch(next);
+});
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 
