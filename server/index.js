@@ -43,6 +43,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 
+// UNIVERSAL MOUNTING (In case Vercel strips /api prefix)
+app.use('/auth', authRoutes);
+app.use('/products', productRoutes);
+app.use('/orders', orderRoutes);
+
 app.get('/', (req, res) => {
     res.send('AgriConnect API is running');
 });
