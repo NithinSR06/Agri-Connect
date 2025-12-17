@@ -8,12 +8,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors()); // Default permissive CORS (Origin: *) - safer than custom config with credentials
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Static files don't work well in serverless without S3, commenting out for now
 
-// Initialize Database
-initDb();
+// Initialize Database (Async, but we don't await it to avoid blocking cold starts, errors logged)
+initDb().catch(err => console.error('DB Init Error:', err));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -28,6 +28,11 @@ app.get('/', (req, res) => {
     res.send('AgriConnect API is running');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Only listen if not running in Vercel (local dev)
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+module.exports = app;

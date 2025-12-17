@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { db } = require('../database');
+const { pool } = require('../database');
 const { JWT_SECRET } = require('../middleware/auth');
 
 const register = async (req, res) => {
@@ -18,30 +18,32 @@ const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Check if user exists
-        db.get('SELECT id FROM users WHERE email = ?', [email], (err, row) => {
-            if (err) return res.status(500).json({ message: 'Database error' });
-            if (row) return res.status(400).json({ message: 'Email already registered' });
+        const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (userCheck.rows.length > 0) {
+            return res.status(400).json({ message: 'Email already registered' });
+        }
 
-            const stmt = db.prepare(`
-        INSERT INTO users (name, email, password_hash, role, location_lat, location_lng, location_text, kyc_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `);
+        const kycStatus = role === 'admin' ? 'verified' : 'pending';
 
-            const kycStatus = role === 'admin' ? 'verified' : 'pending'; // Auto-verify admin for demo, others pending
+        const insertQuery = `
+            INSERT INTO users (name, email, password_hash, role, location_lat, location_lng, location_text, kyc_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
+        `;
 
-            stmt.run(name, email, hashedPassword, role, location_lat, location_lng, location_text, kycStatus, function (err) {
-                if (err) return res.status(500).json({ message: 'Error creating user' });
+        const result = await pool.query(insertQuery, [name, email, hashedPassword, role, location_lat, location_lng, location_text, kycStatus]);
+        const userId = result.rows[0].id;
 
-                const token = jwt.sign({ id: this.lastID, email, role }, JWT_SECRET, { expiresIn: '24h' });
-                res.status(201).json({
-                    message: 'User registered successfully',
-                    token,
-                    user: { id: this.lastID, name, email, role, kyc_status: kycStatus }
-                });
-            });
-            stmt.finalize();
+        const token = jwt.sign({ id: userId, email, role }, JWT_SECRET, { expiresIn: '24h' });
+
+        res.status(201).json({
+            message: 'User registered successfully',
+            token,
+            user: { id: userId, name, email, role, kyc_status: kycStatus }
         });
+
     } catch (error) {
+        console.error('Register Error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -53,8 +55,10 @@ const login = async (req, res) => {
         return res.status(400).json({ message: 'Email and password required' });
     }
 
-    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-        if (err) return res.status(500).json({ message: 'Database error' });
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const user = result.rows[0];
+
         if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
         const validPassword = await bcrypt.compare(password, user.password_hash);
@@ -76,7 +80,10 @@ const login = async (req, res) => {
                 location_text: user.location_text
             }
         });
-    });
+    } catch (error) {
+        console.error('Login Error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 };
 
 module.exports = { register, login };

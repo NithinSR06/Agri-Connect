@@ -1,95 +1,114 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
+require('dotenv').config();
 
-const dbPath = path.resolve(__dirname, 'farm.db');
-
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Error opening database', err.message);
-    } else {
-        console.log('Connected to the SQLite database.');
-    }
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
-function initDb() {
-    db.serialize(() => {
-        // Users Table
-        db.run(`CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT CHECK(role IN ('farmer', 'consumer', 'admin')) NOT NULL,
-      location_lat REAL,
-      location_lng REAL,
-      location_text TEXT,
-      kyc_status TEXT CHECK(kyc_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+// Test connection
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Error acquiring client', err.stack);
+  } else {
+    console.log('Connected to PostgreSQL database');
+    release();
+  }
+});
 
-        // Products Table
-        db.run(`CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      farmer_id INTEGER NOT NULL,
-      crop_name TEXT NOT NULL,
-      price_per_kg REAL NOT NULL,
-      available_qty REAL NOT NULL,
-      harvest_date DATE,
-      unit TEXT DEFAULT 'kg',
-      image_url TEXT,
-      description TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (farmer_id) REFERENCES users (id)
-    )`);
+const initDb = async () => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-        // Orders Table
-        db.run(`CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_uuid TEXT UNIQUE,
-      buyer_id INTEGER NOT NULL,
-      total_amount REAL NOT NULL,
-      payment_method TEXT CHECK(payment_method IN ('COD', 'UPI')),
-      payment_reference TEXT,
-      status TEXT CHECK(status IN ('Pending', 'Processing', 'Packed', 'Delivered', 'Rejected')) DEFAULT 'Pending',
-      delivery_address TEXT,
-      delivery_slot TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (buyer_id) REFERENCES users (id)
-    )`);
+    // Users Table
+    await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT CHECK(role IN ('farmer', 'consumer', 'admin')) NOT NULL,
+                location_lat NUMERIC,
+                location_lng NUMERIC,
+                location_text TEXT,
+                kyc_status TEXT CHECK(kyc_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-        // Order Items Table
-        db.run(`CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
-      farmer_id INTEGER NOT NULL,
-      quantity REAL NOT NULL,
-      price_per_kg REAL NOT NULL,
-      line_total REAL NOT NULL,
-      FOREIGN KEY (order_id) REFERENCES orders (id),
-      FOREIGN KEY (product_id) REFERENCES products (id),
-      FOREIGN KEY (farmer_id) REFERENCES users (id)
-    )`);
+    // Products Table
+    await client.query(`
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                farmer_id INTEGER NOT NULL REFERENCES users(id),
+                crop_name TEXT NOT NULL,
+                price_per_kg NUMERIC NOT NULL,
+                available_qty NUMERIC NOT NULL,
+                harvest_date DATE,
+                unit TEXT DEFAULT 'kg',
+                image_url TEXT,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-        // Reviews Table
-        db.run(`CREATE TABLE IF NOT EXISTS reviews (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
-      farmer_id INTEGER NOT NULL,
-      buyer_id INTEGER NOT NULL,
-      rating INTEGER CHECK(rating >= 1 AND rating <= 5),
-      comment TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (order_id) REFERENCES orders (id),
-      FOREIGN KEY (product_id) REFERENCES products (id),
-      FOREIGN KEY (farmer_id) REFERENCES users (id),
-      FOREIGN KEY (buyer_id) REFERENCES users (id)
-    )`);
-    });
-}
+    // Orders Table
+    await client.query(`
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                order_uuid TEXT UNIQUE,
+                buyer_id INTEGER NOT NULL REFERENCES users(id),
+                total_amount NUMERIC NOT NULL,
+                payment_method TEXT CHECK(payment_method IN ('COD', 'UPI')),
+                payment_reference TEXT,
+                status TEXT CHECK(status IN ('Pending', 'Processing', 'Packed', 'Delivered', 'Rejected')) DEFAULT 'Pending',
+                delivery_address TEXT,
+                delivery_slot TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-module.exports = { db, initDb };
+    // Order Items Table
+    await client.query(`
+            CREATE TABLE IF NOT EXISTS order_items (
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER NOT NULL REFERENCES orders(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                farmer_id INTEGER NOT NULL REFERENCES users(id),
+                quantity NUMERIC NOT NULL,
+                price_per_kg NUMERIC NOT NULL,
+                line_total NUMERIC NOT NULL
+            )
+        `);
+
+    // Reviews Table
+    await client.query(`
+            CREATE TABLE IF NOT EXISTS reviews (
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER NOT NULL REFERENCES orders(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                farmer_id INTEGER NOT NULL REFERENCES users(id),
+                buyer_id INTEGER NOT NULL REFERENCES users(id),
+                rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+                comment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+    await client.query('COMMIT');
+    console.log('Database tables initialized');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('Error initializing database', e);
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { pool, initDb };

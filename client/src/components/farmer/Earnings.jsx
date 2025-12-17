@@ -13,7 +13,7 @@ const Earnings = () => {
     const fetchOrders = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/farmer-orders`, { // Reusing order endpoint for calc
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/orders/farmer`, { // Reusing order endpoint for calc
                 headers: { Authorization: `Bearer ${token}` }
             });
             setOrders(res.data);
